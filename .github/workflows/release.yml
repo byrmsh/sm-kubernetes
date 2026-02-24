@@ -72,11 +72,14 @@ jobs:
     env:
       _MAIN_TAG: dev
       _RELEASE_TAG: ${{ needs.setup.outputs.release_version }}
-      _IMAGE_NAME: ghcr.io/bitwarden/sm-operator
+      _IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sm-operator
     permissions:
       packages: write
 
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
@@ -84,15 +87,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Tag release
-        run: |
-          docker pull "$_IMAGE_NAME:$_MAIN_TAG"
-          docker tag "$_IMAGE_NAME:$_MAIN_TAG" "$_IMAGE_NAME:$_RELEASE_TAG"
-
-      - name: Push release
+      - name: Tag release manifest
         if: ${{ inputs.release_type != 'Dry Run' }}
         run: |
-          docker push "$_IMAGE_NAME:$_RELEASE_TAG"
+          docker buildx imagetools create \
+            --tag "$_IMAGE_NAME:$_RELEASE_TAG" \
+            "$_IMAGE_NAME:$_MAIN_TAG"
 
       - name: Log out of Docker
         run: docker logout ghcr.io

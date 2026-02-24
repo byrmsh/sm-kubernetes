@@ -26,7 +26,7 @@ jobs:
       security-events: write
       id-token: write
     env:
-      _IMAGE_NAME: ghcr.io/bitwarden/sm-operator
+      _IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sm-operator
 
     steps:
       - name: Check out repo
