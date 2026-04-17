@@ -35,13 +35,13 @@ jobs:
           persist-credentials: false
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -90,7 +90,7 @@ jobs:
 
       - name: Build Docker image
         id: build-docker
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
         with:
           file: Dockerfile
           platforms: ${{ env._PUSH_IMAGE == 'true' && 'linux/amd64,linux/arm64' || 'linux/amd64' }} # Can only do single arch when not pushing to support scan and testing locally
@@ -132,7 +132,7 @@ jobs:
           make deploy IMG="$IMAGE"
 
           count=0
-          while [[ $(kubectl get pods -n sm-operator-system -l control-plane=controller-manager -o jsonpath="{.items[*].status.containerStatuses[*].ready}") != "true" ]]; do
+          while [[ $(kubectl get pods --namespace sm-operator-system --selector control-plane=controller-manager --output jsonpath="{.items[*].status.containerStatuses[*].ready}") != "true" ]]; do
             sleep 1;
             count=$count+1
             if [[ count -ge 30 ]]; then
@@ -142,10 +142,15 @@ jobs:
 
           #For review purposes
           echo "*****DEPLOYMENTS*****"
-          kubectl get deployments -n sm-operator-system
+          kubectl get deployments --namespace sm-operator-system
+
+          if [[ $(kubectl get deployments --namespace sm-operator-system --output jsonpath="{.items[0].status.readyReplicas}") != "1" ]]; then
+            echo "::warning::Deployment not 1/1 ready, showing logs..."
+            kubectl logs --namespace sm-operator-system --selector control-plane=controller-manager --all-containers
+          fi
 
           echo "*****PODS*****"
-          pods=$(kubectl get pods -n sm-operator-system -l control-plane=controller-manager | grep 2/2)
+          pods=$(kubectl get pods --namespace sm-operator-system --selector control-plane=controller-manager | grep 1/1)
           echo "$pods"
 
           if [[ -z "$pods" ]]; then
